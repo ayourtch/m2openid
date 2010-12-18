@@ -1,0 +1,8 @@
+This is a very very alpha version of the OpenID authentication handler for mongrel2
+
+Requires:
+
+m2cpp - https://github.com/akrennmair/mongrel2-cpp
+libopkele 
+
+
