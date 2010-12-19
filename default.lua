@@ -45,4 +45,14 @@ function find_assoc(server)
   end
 end
 
+function retrieve_assoc(server, handle)
+  local found = false
+  p("Trying to find association for " ..server .. " handle " .. handle)
+  if found then
+    return op, handle, type, secret, expires_on
+  else
+    return nil
+  end
+end
+
 p "We are using default.lua for callbacks"

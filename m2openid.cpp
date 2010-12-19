@@ -260,14 +260,24 @@ class m2_rp_t : public opkele::prequeue_RP {
 
   opkele::assoc_t retrieve_assoc(
                 const string& OP,const string& handle) {
-    map<string, opkele::assoc_t>::iterator it;
-    cout <<"Retrieve assoc\n";
-    it = all_associations.find(OP + "-" + handle);
-    if(it == all_associations.end()) { 
-      throw opkele::failed_lookup(OPKELE_CP_ "Couldn't find unexpired handle");
-    } else {
-      return it->second;
+    if(lua_find_func(L, "retrieve_assoc")) {
+      lua_pushstring(L, OP.c_str());
+      lua_pushstring(L, handle.c_str());
+      if(lua_call_func(L, 2, 5)) {
+        if(!lua_isnil(L, -5)) {
+          string server = luaL_checkstring(L, -5);
+          string handle = luaL_checkstring(L, -4);
+          string type = luaL_checkstring(L, -3);
+          string secret_s = luaL_checkstring(L, -2);
+          int expires_on = luaL_checknumber(L, -1);
+          secret_t secret;
+          util::decode_base64(secret_s, secret);
+          assoc_t result = assoc_t(new association(server, handle, type, secret, expires_on, false));
+          return result;
+        }
+      }
     }
+    throw opkele::failed_lookup(OPKELE_CP_ "Couldn't find unexpired handle");
   }
 
   void invalidate_assoc(
