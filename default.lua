@@ -55,4 +55,9 @@ function retrieve_assoc(server, handle)
   end
 end
 
+function invalidate_assoc(server, handle)
+  local found = false
+  p("Trying to invalidate association for " ..server .. " handle " .. handle)
+end
+
 p "We are using default.lua for callbacks"

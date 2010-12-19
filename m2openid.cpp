@@ -282,9 +282,13 @@ class m2_rp_t : public opkele::prequeue_RP {
 
   void invalidate_assoc(
                 const string& OP,const string& handle) {
-    cout <<"Invalidate assoc\n";
-    all_associations.erase(all_associations.find(OP + "-" + handle));
+    if(lua_find_func(L, "invalidate_assoc")) {
+      lua_pushstring(L, OP.c_str());
+      lua_pushstring(L, handle.c_str());
+      lua_call_func(L, 2, 0);
+    }
   }
+
   void check_nonce(const string& OP,const string& nonce) {
     cout <<"check nonce\n";
   }
