@@ -1,7 +1,7 @@
 CXX=g++
 CXXFLAGS=-ggdb -Wall -Wextra -Ilib
 LDFLAGS=-L/usr/local/lib -L.
-LIBS=-lzmq -ljson -lm2pp
+LIBS=-lzmq -ljson -lm2pp -llua5.1
 
 prefix=/usr/local
 incdir=$(prefix)/include

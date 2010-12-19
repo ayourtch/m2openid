@@ -32,6 +32,12 @@ using namespace std;
 #include <opkele/sreg.h>
 
 using namespace opkele;
+extern "C" {
+#include "lua5.1/lua.h"
+#include "lua5.1/lualib.h"
+#include "lua5.1/lauxlib.h"
+}
+
 
 #include "sha1.h"
 
@@ -331,8 +337,8 @@ int main(int argc, char *argv[]) {
   std::string sender_id = "82209006-86FF-4982-B5EA-D1E29E55D481";
 
   m2openid::make_rstring(40, random_secret);
-  cout << get_request_cookie();
-  cout << "\n";
+  lua_State *L = lua_open();
+  lua_close(L);
 
   m2pp::connection conn(sender_id, "tcp://127.0.0.1:8989", "tcp://127.0.0.1:8988");
   while (1) {
