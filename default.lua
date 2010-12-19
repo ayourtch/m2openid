@@ -85,6 +85,20 @@ function get_endpoint(asnonce)
   end
 end
 
+function set_normalized_id(asnonce, norm_id)
+  p("Setting normalized id for " .. asnonce .. " to " .. norm_id)
+end
+
+function get_normalized_id(asnonce)
+  local found = false
+  p("Getting normalized id for " .. asnonce)
+  if found then
+    return "normalized_id"
+  else
+    return nil
+  end
+end
+
 
 
 

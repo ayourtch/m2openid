@@ -191,7 +191,6 @@ string dumpreq(m2pp::request req) {
 
 
 map<string, opkele::assoc_t> all_associations;
-string this_url;
 
 
 class m2_rp_t : public opkele::prequeue_RP {
@@ -341,16 +340,25 @@ class m2_rp_t : public opkele::prequeue_RP {
   }
 
   void set_normalized_id(const string& nid) {
+    if(lua_find_func(L, "set_normalized_id")) {
+      lua_pushstring(L, asnonceid.c_str());
+      lua_pushstring(L, nid.c_str());
+      lua_call_func(L, 2, 0);
+    }
   }
+
   const string get_normalized_id() const {
-    cout <<"get normalized_id\n";
-    return "asdf\n";
+    if(lua_find_func(L, "get_normalized_id")) {
+      lua_pushstring(L, asnonceid.c_str());
+      if(lua_call_func(L, 1, 1) && !lua_isnil(L, -1)) {
+        return string(luaL_checkstring(L, -1));
+      }
+    }
+    throw opkele::exception(OPKELE_CP_ "cannot get normalized id");
   }
   
   const string get_this_url() const {
-    cout <<"get this url\n";
-    cout << this_url;
-    return  this_url;
+    return serverurl;
   }
 
   void initiate(const string& usi) {
@@ -404,13 +412,12 @@ string get_request_cookie() {
 
 string start_auth(string usi, string onsuccess, string oncancel, string trust_root, string return_to) {
       // e.g. usi = "https://www.google.com/accounts/o8/id";
-      m2_rp_t rp("","");
-      rp.initiate(usi);
       opkele::sreg_t sreg(opkele::sreg_t::fields_NONE,opkele::sreg_t::fields_ALL);
       opkele::openid_message_t cm;
       string loc;
       string return_to_full = return_to + "?request.cookie=" + get_request_cookie() + "&onsuccess=" + onsuccess + "&oncancel=" + oncancel;
-      this_url = return_to_full;
+      m2_rp_t rp(return_to_full,"");
+      rp.initiate(usi);
       loc = rp.checkid_(cm,opkele::mode_checkid_setup, return_to_full, trust_root, &sreg).append_query(rp.get_endpoint().uri);
       return loc;
 }
