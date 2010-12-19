@@ -191,6 +191,7 @@ string dumpreq(m2pp::request req) {
 
 
 map<string, opkele::assoc_t> all_associations;
+string this_url;
 
 
 class m2_rp_t : public opkele::prequeue_RP {
@@ -369,6 +370,10 @@ class m2_rp_t : public opkele::prequeue_RP {
   }
   
   const string get_this_url() const {
+    cout << "THISURL1:" << this_url << endl;
+    cout << "THISURL2:" << serverurl << endl;
+    
+    return this_url;
     return serverurl;
   }
 
@@ -428,6 +433,7 @@ string start_auth(string usi, string onsuccess, string oncancel, string trust_ro
       string loc;
       string return_to_full = return_to + "?request.cookie=" + get_request_cookie() + "&onsuccess=" + onsuccess + "&oncancel=" + oncancel;
       m2_rp_t rp(return_to_full,"");
+      this_url = return_to_full;
       rp.initiate(usi);
       loc = rp.checkid_(cm,opkele::mode_checkid_setup, return_to_full, trust_root, &sreg).append_query(rp.get_endpoint().uri);
       return loc;
