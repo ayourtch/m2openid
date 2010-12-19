@@ -20,4 +20,19 @@ function initialize(random_secret)
   return random_secret, sender_id, zmq_pub_spec, zmq_sub_spec
 end
 
-print "We are using default.lua for callbacks"
+function p(str)
+  print("LUA: " ..str)
+end
+
+function store_assoc(op, handle, type, secret, expires_on)
+  local ass = {
+    op = op,
+    handle = handle,
+    type = type,
+    secret = secret,
+    expires_on = expires_on
+  }
+  p("Storing association for " .. op)
+end
+
+p "We are using default.lua for callbacks"

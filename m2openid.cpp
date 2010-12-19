@@ -43,13 +43,13 @@ extern "C" {
 
 lua_State *L;
 
-void report_lua_error(lua_State *L) {
+void lua_report_error(lua_State *L) {
   cout << lua_tostring(L, -1);
   cout << "\n";
   lua_pop(L, 1);
 }
 
-int get_lua_func(lua_State *L, string func_name) {
+int lua_find_func(lua_State *L, string func_name) {
   lua_getglobal(L, func_name.c_str());
   if(!lua_isfunction(L,-1)) {
     lua_pop(L,1);
@@ -59,11 +59,11 @@ int get_lua_func(lua_State *L, string func_name) {
   }
 }
 
-int call_lua_func(lua_State *L, int nargs, int nres) {
+int lua_call_func(lua_State *L, int nargs, int nres) {
   if (lua_pcall(L, nargs, nres, 0) == 0) {
     return -1; 
   } else {
-    report_lua_error(L);
+    lua_report_error(L);
     return 0; 
   }
 }
@@ -210,20 +210,28 @@ class m2_rp_t : public opkele::prequeue_RP {
                 const string& OP,const string& handle,
                 const string& type,const opkele::secret_t& secret,
                 int expires_in) {
-    cout << OP ;
-    cout << " handle: ";
-    cout << handle ;
-    cout << " type: ";
-    cout << type ;
-    cout << " secret: ";
-    // cout << secret;
-    cout << " expires: ";
-    cout << expires_in;
-    cout <<" - Store assoc\n";
+    time_t rawtime;
+    time (&rawtime);
+    int expires_on = rawtime + expires_in;
+
+    if(lua_find_func(L, "store_assoc")) {
+      lua_pushstring(L, OP.c_str());
+      lua_pushstring(L, handle.c_str());
+      lua_pushstring(L, type.c_str());
+      lua_pushlstring(L, (const char*) &(secret.front()), secret.size());
+      lua_pushnumber(L, expires_on);
+      if(lua_call_func(L, 5, 0)) {
+      } else {
+        // FIXME - is this a correct exception ?
+        throw opkele::failed_lookup(OPKELE_CP_ "Could not store!");
+      };
+    } else {
+      // FIXME - is this a correct exception ?
+      throw opkele::failed_lookup(OPKELE_CP_ "Could not store!");
+    }
+
     ass = opkele::assoc_t(new opkele::association(
-                        OP, handle, type, secret, expires_in, false ));
-    all_associations[OP + "-" + handle] = ass;
-    all_associations[OP] = ass;
+                        OP, handle, type, secret, expires_on, false ));
     return ass;
    
   }
@@ -372,13 +380,13 @@ int main(int argc, char *argv[]) {
   luaL_openlibs(L);
 
   if(luaL_loadfile(L, callbacks_file.c_str()) || lua_pcall(L, 0, 0, 0)) {
-    report_lua_error(L);
+    lua_report_error(L);
     exit(1);
   }
 
-  if(get_lua_func(L, "initialize")) {
+  if(lua_find_func(L, "initialize")) {
     lua_pushstring(L, random_secret.c_str());
-    if(call_lua_func(L, 1, 4)) {
+    if(lua_call_func(L, 1, 4)) {
       random_secret = luaL_checkstring(L, -4);
       sender_id = luaL_checkstring(L, -3);
       pub_spec = luaL_checkstring(L, -2);
