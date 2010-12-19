@@ -60,4 +60,18 @@ function invalidate_assoc(server, handle)
   p("Trying to invalidate association for " ..server .. " handle " .. handle)
 end
 
+-- Per-authentication attempt endpoint stuff
+
+function begin_queueing(asnonce)
+  p("Begin queueing for " .. asnonce)
+end
+
+function queue_endpoint(asnonce, ep_uri, ep_claimed_id, ep_local_id, expires_on)
+  p("Enqueue for " .. asnonce .. " uri: " .. ep_uri .. " claimed_id: " .. ep_claimed_id ..
+     " local_id: " .. ep_local_id .. " expires_on: " .. tostring(expires_on))
+end
+
+
+
+
 p "We are using default.lua for callbacks"

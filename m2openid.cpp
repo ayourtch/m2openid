@@ -197,8 +197,10 @@ string this_url;
 class m2_rp_t : public opkele::prequeue_RP {
   public:
     long as_id;
+    string asnonceid;
+    string serverurl;
 
-  m2_rp_t(): as_id(0) {
+  m2_rp_t(const string& _asnonceid, const string& _serverurl): as_id(0), asnonceid(_asnonceid), serverurl(_serverurl) {
   }
 
   /* Global persistent store */
@@ -296,13 +298,25 @@ class m2_rp_t : public opkele::prequeue_RP {
   /* Session perisistent store */
 
   void begin_queueing() {
-    cout <<"begin queueing\n";
+    if(lua_find_func(L, "begin_queueing")) {
+      lua_pushstring(L, asnonceid.c_str());
+      lua_call_func(L, 1, 0);
+    }
   }
   opkele::openid_endpoint_t ep0;
 
   void queue_endpoint(const opkele::openid_endpoint_t& ep) {
-    cout <<"queue endpoint\n";
-    ep0 = ep;
+    time_t rawtime;
+    time (&rawtime);
+    int expires_on = rawtime + 3600;  // allow nonce to exist for up to one hour without being returned
+    if(lua_find_func(L, "queue_endpoint")) {
+      lua_pushstring(L, asnonceid.c_str());
+      lua_pushstring(L, ep.uri.c_str());
+      lua_pushstring(L, ep.claimed_id.c_str());
+      lua_pushstring(L, ep.local_id.c_str());
+      lua_pushnumber(L, expires_on);
+      lua_call_func(L, 5, 0); 
+    }
   }
 
   void next_endpoint() {
@@ -376,7 +390,7 @@ string get_request_cookie() {
 
 string start_auth(string usi, string onsuccess, string oncancel, string trust_root, string return_to) {
       // e.g. usi = "https://www.google.com/accounts/o8/id";
-      m2_rp_t rp;
+      m2_rp_t rp("","");
       rp.initiate(usi);
       opkele::sreg_t sreg(opkele::sreg_t::fields_NONE,opkele::sreg_t::fields_ALL);
       opkele::openid_message_t cm;
@@ -454,7 +468,7 @@ int main(int argc, char *argv[]) {
       // user has been redirected, authenticate them and set cookie
       try {
         if(check_request_cookie(params.get_param("request.cookie"))) {
-          m2_rp_t rp;
+          m2_rp_t rp("", "");
           std::vector<m2pp::header> reply_headers;
           rp.id_res(m2openid::m2openid_message_t(params));
           m2pp::header redirect_hdr("Location", params.get_param("onsuccess"));
