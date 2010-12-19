@@ -291,7 +291,18 @@ class m2_rp_t : public opkele::prequeue_RP {
   }
 
   void check_nonce(const string& OP,const string& nonce) {
-    cout <<"check nonce\n";
+    if(lua_find_func(L, "check_nonce")) {
+      lua_pushstring(L, OP.c_str());
+      lua_pushstring(L, nonce.c_str());
+      if(lua_call_func(L, 2, 1)) {
+        if (!lua_isnil(L, -1)) {
+          throw opkele::id_res_bad_nonce(OPKELE_CP_ "old nonce used again - possible replay attack");
+        } else {
+          return;
+        }
+      }
+    }
+    // throw opkele::id_res_bad_nonce(OPKELE_CP_ "Could not check nonce - fail!");
   }
 
   /* Session perisistent store */

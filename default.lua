@@ -99,7 +99,15 @@ function get_normalized_id(asnonce)
   end
 end
 
-
+function check_nonce(server, nonce)
+  local nonce_not_seen = true
+  p("Checking nonce for server " .. server .. " nonce: " .. nonce)
+  if nonce_not_seen then
+    return true
+  else
+    return nil
+  end
+end
 
 
 p "We are using default.lua for callbacks"
