@@ -49,6 +49,25 @@ void report_lua_error(lua_State *L) {
   lua_pop(L, 1);
 }
 
+int get_lua_func(lua_State *L, string func_name) {
+  lua_getglobal(L, func_name.c_str());
+  if(!lua_isfunction(L,-1)) {
+    lua_pop(L,1);
+    return 0;
+  } else {
+    return -1;
+  }
+}
+
+int call_lua_func(lua_State *L, int nargs, int nres) {
+  if (lua_pcall(L, nargs, nres, 0) == 0) {
+    return -1; 
+  } else {
+    report_lua_error(L);
+    return 0; 
+  }
+}
+
 namespace m2openid {
   using namespace std;
 
@@ -345,19 +364,34 @@ int main(int argc, char *argv[]) {
   std::string callbacks_file = (argc >= 2) ? argv[1] : "default.lua";
 
   std::string sender_id = "82209006-86FF-4982-B5EA-D1E29E55D481";
+  std::string pub_spec = "tcp://127.0.0.1:8989";
+  std::string sub_spec = "tcp://127.0.0.1:8988";
 
   m2openid::make_rstring(40, random_secret);
   L = lua_open();
   luaL_openlibs(L);
 
-  int s = luaL_loadfile(L, callbacks_file.c_str());
-  
-  if(s != 0) {
+  if(luaL_loadfile(L, callbacks_file.c_str()) || lua_pcall(L, 0, 0, 0)) {
     report_lua_error(L);
     exit(1);
   }
 
-  m2pp::connection conn(sender_id, "tcp://127.0.0.1:8989", "tcp://127.0.0.1:8988");
+  if(get_lua_func(L, "initialize")) {
+    lua_pushstring(L, random_secret.c_str());
+    if(call_lua_func(L, 1, 4)) {
+      random_secret = luaL_checkstring(L, -4);
+      sender_id = luaL_checkstring(L, -3);
+      pub_spec = luaL_checkstring(L, -2);
+      sub_spec = luaL_checkstring(L, -1);
+    } else {
+      exit(1);
+    }
+  } else {
+    cout << "'initialize' Lua callback undefined\n";
+    exit(1);
+  }
+
+  m2pp::connection conn(sender_id, pub_spec, sub_spec);
   while (1) {
     m2pp::request req = conn.recv();
     opkele::params_t headers = parsereq(req);
