@@ -24,6 +24,8 @@ function p(str)
   print("LUA: " ..str)
 end
 
+assocs = {}
+
 function store_assoc(op, handle, type, secret, expires_on)
   local ass = {
     op = op,
@@ -33,26 +35,42 @@ function store_assoc(op, handle, type, secret, expires_on)
     expires_on = expires_on
   }
   p("Storing association for " .. op)
+  assocs[#assocs+1] = ass
 end
 
 function find_assoc(server)
-  local found = false
+  local ass = nil
+
   p("Trying to find association for " ..server)
-  if found then
-    return op, handle, type, secret, expires_on
+  for i,a in ipairs(assocs) do
+    if a.op == server then
+      ass = a
+    end
+  end
+
+  if ass then
+    return ass.op, ass.handle, ass.type, ass.secret, ass.expires_on
   else
     return nil
   end
 end
 
 function retrieve_assoc(server, handle)
-  local found = false
   p("Trying to find association for " ..server .. " handle " .. handle)
-  if found then
-    return op, handle, type, secret, expires_on
+  local ass = nil
+
+  for i,a in ipairs(assocs) do
+    if a.op == server and a.handle == handle then
+      ass = a
+    end
+  end
+
+  if ass then
+    return ass.op, ass.handle, ass.type, ass.secret, ass.expires_on
   else
     return nil
   end
+
 end
 
 function invalidate_assoc(server, handle)
@@ -62,24 +80,38 @@ end
 
 -- Per-authentication attempt endpoint stuff
 
+auths = {}
+
 function begin_queueing(asnonce)
   p("Begin queueing for " .. asnonce)
+  auths[asnonce] = {}
 end
 
-function queue_endpoint(asnonce, ep_uri, ep_claimed_id, ep_local_id, expires_on)
-  p("Enqueue for " .. asnonce .. " uri: " .. ep_uri .. " claimed_id: " .. ep_claimed_id ..
-     " local_id: " .. ep_local_id .. " expires_on: " .. tostring(expires_on))
+function queue_endpoint(asnonce, uri, claimed_id, local_id, expires_on)
+  p("Enqueue for " .. asnonce .. " uri: " .. uri .. " claimed_id: " .. claimed_id ..
+     " local_id: " .. local_id .. " expires_on: " .. tostring(expires_on))
+
+  local ep = {
+    uri = uri,
+    claimed_id = claimed_id,
+    local_id = local_id,
+    expires_on = expires_on
+  }
+  table.insert(auths[asnonce], ep)
 end
 
 function next_endpoint(asnonce)
   p("Advancing to next endpoint for " .. asnonce)
+  table.remove(auths[asnonce], 1)
 end
 
 function get_endpoint(asnonce)
-  local found = false
+  local ep = nil
   p("Getting endpoint for " .. asnonce)
-  if found then
-    return ep_uri, ep_claimed_id, ep_local_id
+  ep = auths[asnonce][1]
+  if ep then
+    p("Returning: " .. ep.uri .. ", " .. ep.claimed_id .. ", " .. ep.local_id)
+    return ep.uri, ep.claimed_id, ep.local_id
   else
     return nil
   end
@@ -102,11 +134,14 @@ end
 function check_nonce(server, nonce)
   local nonce_not_seen = true
   p("Checking nonce for server " .. server .. " nonce: " .. nonce)
+  return nil
+--[[
   if nonce_not_seen then
     return true
   else
     return nil
   end
+]]
 end
 
 
