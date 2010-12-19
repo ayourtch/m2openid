@@ -218,7 +218,7 @@ class m2_rp_t : public opkele::prequeue_RP {
       lua_pushstring(L, OP.c_str());
       lua_pushstring(L, handle.c_str());
       lua_pushstring(L, type.c_str());
-      lua_pushlstring(L, (const char*) &(secret.front()), secret.size());
+      lua_pushstring(L, util::encode_base64(&(secret.front()),secret.size()).c_str());
       lua_pushnumber(L, expires_on);
       if(lua_call_func(L, 5, 0)) {
       } else {
@@ -239,17 +239,23 @@ class m2_rp_t : public opkele::prequeue_RP {
   opkele::assoc_t find_assoc(
                 const string& OP) {
 
-    map<string, opkele::assoc_t>::iterator it;
-    cout << OP;
-    cout <<" - Find assoc\n";
-    it = all_associations.find(OP);
-    if(it == all_associations.end()) {  
-      cout << "Assoc not found!\n";
-      throw opkele::failed_lookup(OPKELE_CP_ "Couldn't find unexpired handle");
-    } else {
-      cout << "Assoc found!\n";
-      return it->second;
+    if(lua_find_func(L, "find_assoc")) {
+      lua_pushstring(L, OP.c_str());
+      if(lua_call_func(L, 1, 5)) {
+        if(!lua_isnil(L, -5)) {
+          string server = luaL_checkstring(L, -5);
+          string handle = luaL_checkstring(L, -4);
+          string type = luaL_checkstring(L, -3);
+          string secret_s = luaL_checkstring(L, -2);
+          int expires_on = luaL_checknumber(L, -1);
+          secret_t secret;
+          util::decode_base64(secret_s, secret);
+          assoc_t result = assoc_t(new association(server, handle, type, secret, expires_on, false));
+          return result;
+        }
+      }
     }
+    throw opkele::failed_lookup(OPKELE_CP_ "Couldn't find unexpired handle");
   }
 
   opkele::assoc_t retrieve_assoc(

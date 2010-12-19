@@ -35,4 +35,14 @@ function store_assoc(op, handle, type, secret, expires_on)
   p("Storing association for " .. op)
 end
 
+function find_assoc(server)
+  local found = false
+  p("Trying to find association for " ..server)
+  if found then
+    return op, handle, type, secret, expires_on
+  else
+    return nil
+  end
+end
+
 p "We are using default.lua for callbacks"
