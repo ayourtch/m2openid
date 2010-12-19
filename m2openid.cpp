@@ -191,7 +191,6 @@ string dumpreq(m2pp::request req) {
 
 
 map<string, opkele::assoc_t> all_associations;
-string this_url;
 
 
 class m2_rp_t : public opkele::prequeue_RP {
@@ -370,10 +369,6 @@ class m2_rp_t : public opkele::prequeue_RP {
   }
   
   const string get_this_url() const {
-    cout << "THISURL1:" << this_url << endl;
-    cout << "THISURL2:" << serverurl << endl;
-    
-    return this_url;
     return serverurl;
   }
 
@@ -431,9 +426,9 @@ string start_auth(string usi, string onsuccess, string oncancel, string trust_ro
       opkele::sreg_t sreg(opkele::sreg_t::fields_NONE,opkele::sreg_t::fields_ALL);
       opkele::openid_message_t cm;
       string loc;
-      string return_to_full = return_to + "?request.cookie=" + get_request_cookie() + "&onsuccess=" + onsuccess + "&oncancel=" + oncancel;
-      m2_rp_t rp(return_to_full,"");
-      this_url = return_to_full;
+      string req_cookie = get_request_cookie();
+      string return_to_full = return_to + "?request.cookie=" + req_cookie + "&onsuccess=" + onsuccess + "&oncancel=" + oncancel;
+      m2_rp_t rp(req_cookie, return_to_full);
       rp.initiate(usi);
       loc = rp.checkid_(cm,opkele::mode_checkid_setup, return_to_full, trust_root, &sreg).append_query(rp.get_endpoint().uri);
       return loc;
@@ -502,11 +497,12 @@ int main(int argc, char *argv[]) {
       reply_headers.push_back(redirect_hdr);
       conn.reply_http(req, "", 302, "Redirect", reply_headers);
       
-    } else if(params.has_param("openid.assoc_handle") && params.has_param("request.cookie") && params.has_param("onsuccess")) { 
+    } else if(params.has_param("openid.assoc_handle") && params.has_param("request.cookie") && params.has_param("onsuccess") && params.has_param("openid.return_to")) { 
       // user has been redirected, authenticate them and set cookie
       try {
-        if(check_request_cookie(params.get_param("request.cookie"))) {
-          m2_rp_t rp("", "");
+        string req_cookie = params.get_param("request.cookie");
+        if(check_request_cookie(req_cookie)) {
+          m2_rp_t rp(req_cookie, params.get_param("openid.return_to"));
           std::vector<m2pp::header> reply_headers;
           rp.id_res(m2openid::m2openid_message_t(params));
           m2pp::header redirect_hdr("Location", params.get_param("onsuccess"));
