@@ -41,6 +41,13 @@ extern "C" {
 
 #include "sha1.h"
 
+lua_State *L;
+
+void report_lua_error(lua_State *L) {
+  cout << lua_tostring(L, -1);
+  cout << "\n";
+  lua_pop(L, 1);
+}
 
 namespace m2openid {
   using namespace std;
@@ -334,11 +341,21 @@ string start_auth(string usi, string onsuccess, string oncancel, string trust_ro
 }
 
 int main(int argc, char *argv[]) {
+
+  std::string callbacks_file = (argc >= 2) ? argv[1] : "default.lua";
+
   std::string sender_id = "82209006-86FF-4982-B5EA-D1E29E55D481";
 
   m2openid::make_rstring(40, random_secret);
-  lua_State *L = lua_open();
-  lua_close(L);
+  L = lua_open();
+  luaL_openlibs(L);
+
+  int s = luaL_loadfile(L, callbacks_file.c_str());
+  
+  if(s != 0) {
+    report_lua_error(L);
+    exit(1);
+  }
 
   m2pp::connection conn(sender_id, "tcp://127.0.0.1:8989", "tcp://127.0.0.1:8988");
   while (1) {
