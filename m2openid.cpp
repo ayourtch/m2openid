@@ -170,7 +170,7 @@ opkele::params_t parsereq(m2pp::request req) {
   }
   response << "</pre>" << std::endl;
 
-  std::cout << response.str();
+  // std::cout << response.str();
   return h;
 }
 
