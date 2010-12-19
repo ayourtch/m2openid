@@ -1,8 +1,15 @@
 This is a very very alpha version of the OpenID authentication handler for mongrel2
 
+License: BSD
+
 Requires:
 
 m2cpp - https://github.com/akrennmair/mongrel2-cpp
 libopkele 
 
+Thanks:
 
+To bmuller for his mod_auth_openid (https://github.com/bmuller/mod_auth_openid) 
+which inspired me to write this one.
+
+To Michael 'hacker' Krelin <hacker@klever.net> for his libopkele library.
