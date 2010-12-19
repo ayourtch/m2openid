@@ -71,6 +71,20 @@ function queue_endpoint(asnonce, ep_uri, ep_claimed_id, ep_local_id, expires_on)
      " local_id: " .. ep_local_id .. " expires_on: " .. tostring(expires_on))
 end
 
+function next_endpoint(asnonce)
+  p("Advancing to next endpoint for " .. asnonce)
+end
+
+function get_endpoint(asnonce)
+  local found = false
+  p("Getting endpoint for " .. asnonce)
+  if found then
+    return ep_uri, ep_claimed_id, ep_local_id
+  else
+    return nil
+  end
+end
+
 
 
 

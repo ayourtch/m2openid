@@ -303,7 +303,6 @@ class m2_rp_t : public opkele::prequeue_RP {
       lua_call_func(L, 1, 0);
     }
   }
-  opkele::openid_endpoint_t ep0;
 
   void queue_endpoint(const opkele::openid_endpoint_t& ep) {
     time_t rawtime;
@@ -320,12 +319,27 @@ class m2_rp_t : public opkele::prequeue_RP {
   }
 
   void next_endpoint() {
-    cout <<"next endpoint\n";
+    if(lua_find_func(L, "next_endpoint")) {
+      lua_pushstring(L, asnonceid.c_str());
+      lua_call_func(L, 1, 0);
+    }
   }
+
   const openid_endpoint_t& get_endpoint() const {
-    cout <<"get endpoint\n";
-    return ep0;
+    if(lua_find_func(L, "get_endpoint")) {
+      lua_pushstring(L, asnonceid.c_str());
+      if(lua_call_func(L, 1, 3) && !lua_isnil(L, -3)) {
+        openid_endpoint_t *endpoint = new openid_endpoint_t();
+        endpoint->uri = string(luaL_checkstring(L, -3));
+        endpoint->claimed_id = string(luaL_checkstring(L, -2));
+        endpoint->local_id = string(luaL_checkstring(L, -1));
+        // FIXME: do we have a leak here ?
+        return *endpoint;
+      }
+    }
+    throw opkele::exception(OPKELE_CP_ "No more endpoints queued");
   }
+
   void set_normalized_id(const string& nid) {
   }
   const string get_normalized_id() const {
