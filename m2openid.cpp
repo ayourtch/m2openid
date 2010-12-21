@@ -539,7 +539,6 @@ int main(int argc, char *argv[]) {
       }
     }
 
-  // conn.reply_http(req, response.str());
 }
 
 	return 0;
