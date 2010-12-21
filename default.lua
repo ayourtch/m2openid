@@ -144,5 +144,16 @@ function check_nonce(server, nonce)
 ]]
 end
 
+function auth_success(nonce, claimed_id)
+  p("Authentication successful for " .. nonce .. " claimed id " .. claimed_id)
+  --[[
+    if this returns string, that string will be used as a value in a
+    Set-Cookie header sent towards the client. If it returns nothing, 
+    no attempts to set any cookies will be made.
+    If you want to create some cookie and record its tie with the identity - 
+    do it here and cook the correct header to have the cookie set on the client.
+  ]]
+end
+
 
 p "We are using default.lua for callbacks"

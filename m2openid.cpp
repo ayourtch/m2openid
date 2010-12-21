@@ -434,6 +434,22 @@ string start_auth(string usi, string onsuccess, string oncancel, string trust_ro
       return loc;
 }
 
+/* If we return empty string, then it does not get to the browser.
+ * If the string is non-empty - it will be put into Set-Cookie response.
+ */
+string auth_success(string nonce, string claimed_id) {
+  string http_cookie_header = "";
+  if(lua_find_func(L, "auth_success")) {
+    lua_pushstring(L, nonce.c_str());
+    lua_pushstring(L, claimed_id.c_str());
+    if(lua_call_func(L, 2, 1) && !lua_isnil(L, -1)) {
+      http_cookie_header = string(luaL_checkstring(L, -1));
+    }
+  }
+  return http_cookie_header;
+}
+
+
 /* 
  * This function is called if something happened which should not have happened.
  * I.e. it is not a normal error, but someone is actively messing with the flow.
@@ -516,6 +532,11 @@ int main(int argc, char *argv[]) {
           m2_rp_t rp(req_cookie, params.get_param("openid.return_to"));
           std::vector<m2pp::header> reply_headers;
           rp.id_res(m2openid::m2openid_message_t(params));
+          string cookie_value = auth_success(req_cookie, rp.get_claimed_id());
+          if(cookie_value != "") {
+            m2pp::header cookie_hdr("Set-Cookie", cookie_value);
+            reply_headers.push_back(cookie_hdr);
+          }
           m2pp::header redirect_hdr("Location", params.get_param("onsuccess"));
           reply_headers.push_back(redirect_hdr);
           conn.reply_http(req, "", 302, "Redirect", reply_headers);
