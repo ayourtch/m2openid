@@ -38,6 +38,11 @@ extern "C" {
 #include "lua5.1/lauxlib.h"
 }
 
+enum { 
+  DEBUG_REQUESTS = 1,
+};
+
+int debug = DEBUG_REQUESTS;
 
 #include "sha1.h"
 
@@ -170,7 +175,9 @@ opkele::params_t parsereq(m2pp::request req) {
   }
   response << "</pre>" << std::endl;
 
-  // std::cout << response.str();
+  if(debug & DEBUG_REQUESTS) {
+    std::cout << response.str();
+  }
   return h;
 }
 
