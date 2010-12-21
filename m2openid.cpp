@@ -434,6 +434,17 @@ string start_auth(string usi, string onsuccess, string oncancel, string trust_ro
       return loc;
 }
 
+/* 
+ * This function is called if something happened which should not have happened.
+ * I.e. it is not a normal error, but someone is actively messing with the flow.
+ * So we politely complain and tell not much more.
+ * FIXME: some logging would be nice though.
+ */
+void send_terse_error(m2pp::connection &conn, m2pp::request req) {
+  conn.reply_http(req, "<html><body><h1>Error</h1><p>One of the necessary parameters not supplied</p></body></html>", 
+                 500, "Invalid parameters");
+}
+
 int main(int argc, char *argv[]) {
 
   std::string callbacks_file = (argc >= 2) ? argv[1] : "default.lua";
@@ -509,10 +520,13 @@ int main(int argc, char *argv[]) {
           reply_headers.push_back(redirect_hdr);
           conn.reply_http(req, "", 302, "Redirect", reply_headers);
         } else {
-          conn.reply_http(req, "<html><body><h1>Error</h1><p>One of the necessary parameters not supplied</p></body></html>", 500, "Invalid parameters");
+          /* protocol violation: bad cookie */
+          /* FIXME: this can happen with the user error as well if they fall asleep while logging in ? */
+          send_terse_error(conn, req);
         }
       } catch (opkele::exception &e) {
-        conn.reply_http(req, "<html><body><h1>Error</h1><p>One of the necessary parameters not supplied</p></body></html>", 500, "Invalid parameters");
+        /* Something really bad happened within opkele */
+        send_terse_error(conn, req);
       }
     } else { //either the cancelled auth, or we are in error.
       if(params.has_param("openid.mode") && params.get_param("openid.mode") == "cancel" && params.has_param("oncancel")) {
@@ -521,7 +535,7 @@ int main(int argc, char *argv[]) {
         reply_headers.push_back(redirect_hdr);
         conn.reply_http(req, "", 302, "Redirect", reply_headers);
       } else {
-        conn.reply_http(req, "<html><body><h1>Error</h1><p>One of the necessary parameters not supplied</p></body></html>", 500, "Invalid parameters");
+        send_terse_error(conn, req);
       }
     }
 
