@@ -197,9 +197,6 @@ string dumpreq(m2pp::request req) {
 }
 
 
-map<string, opkele::assoc_t> all_associations;
-
-
 class m2_rp_t : public opkele::prequeue_RP {
   public:
     long as_id;
@@ -444,6 +441,16 @@ string get_profile_value(string profile, string key) {
   return "";
 }
 
+string get_config_value(string key) {
+  if(lua_find_func(L, "get_config_value")) {
+    lua_pushstring(L, key.c_str());
+    if(lua_call_func(L, 1, 1) && !lua_isnil(L, -1)) {
+      return string(luaL_checkstring(L, -1));
+    }
+  } 
+  return "";
+}
+
 string get_full_return(string profile, string req_cookie, string return_to) {
   return get_profile_value(profile, "handler_url") + "?request.cookie=" + req_cookie + 
          "&orig.return_to=" + return_to;
@@ -509,11 +516,11 @@ int main(int argc, char *argv[]) {
 
   if(lua_find_func(L, "initialize")) {
     lua_pushstring(L, random_secret.c_str());
-    if(lua_call_func(L, 1, 4)) {
-      random_secret = luaL_checkstring(L, -4);
-      sender_id = luaL_checkstring(L, -3);
-      pub_spec = luaL_checkstring(L, -2);
-      sub_spec = luaL_checkstring(L, -1);
+    if(lua_call_func(L, 1, 1)) {
+      random_secret = luaL_checkstring(L, -1);
+      sender_id = get_config_value("sender_id");
+      pub_spec = get_config_value("pub_spec");
+      sub_spec = get_config_value("sub_spec");
     } else {
       exit(1);
     }
