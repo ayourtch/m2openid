@@ -387,7 +387,7 @@ class m2_rp_t : public opkele::prequeue_RP {
 
 string random_secret = ""; // initialized at startup
 
-int check_request_cookie(string str) {
+string check_request_cookie(string str) {
   vector<string> comp = m2openid::explode(str, "-");
   uint64_t time_now = m2openid::timenow();
   uint64_t time_then;
@@ -395,21 +395,26 @@ int check_request_cookie(string str) {
   char hexstring[41];
   char *end;
   string calc;
-  string test = comp[0] + "-" + comp[1] + "-" + random_secret;
+  string test = comp[0] + "-" + comp[1] + "-" + comp[2] + "-" + random_secret;
   time_then = strtoull(comp[1].c_str(), &end, 10);
   if(time_then > time_now) {
-    return 0;
+    return "";
   }
   if(time_now - time_then > 1000000L * 600) {
-    return 0;
+    return "";
   }
   sha1::calc(test.c_str(), test.length(),hash); 
   sha1::toHexString(hash, hexstring);
   calc = hexstring;
-  return (calc == comp[2]);
+  if (calc == comp[3]) {
+    /* success - return profile name */
+    return comp[2];
+  } else {
+    return "";
+  }
 }
 
-string get_request_cookie() {
+string get_request_cookie(string profile) {
   unsigned char hash[20];
   char hexstring[41];
   string s;
@@ -419,7 +424,7 @@ string get_request_cookie() {
   ss << time_now;
 
   m2openid::make_rstring(20, s); 
-  s = s + "-" + ss.str();
+  s = s + "-" + ss.str() + "-" + profile;
   s1 = s + "-" + random_secret;
   sha1::calc(s1.c_str(), s1.length(),hash); 
   sha1::toHexString(hash, hexstring);
@@ -428,16 +433,33 @@ string get_request_cookie() {
   return s;
 }
 
-string start_auth(string usi, string onsuccess, string oncancel, string trust_root, string return_to) {
+string get_profile_value(string profile, string key) {
+  if(lua_find_func(L, "get_profile_value")) {
+    lua_pushstring(L, profile.c_str());
+    lua_pushstring(L, key.c_str());
+    if(lua_call_func(L, 2, 1) && !lua_isnil(L, -1)) {
+      return string(luaL_checkstring(L, -1));
+    }
+  }
+  return "";
+}
+
+string get_full_return(string profile, string req_cookie, string return_to) {
+  return get_profile_value(profile, "handler_url") + "?request.cookie=" + req_cookie + 
+         "&orig.return_to=" + return_to;
+}
+
+string start_auth(string usi, string profile, string return_to) {
       // e.g. usi = "https://www.google.com/accounts/o8/id";
       opkele::sreg_t sreg(opkele::sreg_t::fields_NONE,opkele::sreg_t::fields_ALL);
       opkele::openid_message_t cm;
-      string loc;
-      string req_cookie = get_request_cookie();
-      string return_to_full = return_to + "?request.cookie=" + req_cookie + "&onsuccess=" + onsuccess + "&oncancel=" + oncancel;
+      string req_cookie = get_request_cookie(profile);
+      string trust_root = get_profile_value(profile, "trust_root");
+      string return_to_full = get_full_return(profile, req_cookie, return_to);
       m2_rp_t rp(req_cookie, return_to_full);
       rp.initiate(usi);
-      loc = rp.checkid_(cm,opkele::mode_checkid_setup, return_to_full, trust_root, &sreg).append_query(rp.get_endpoint().uri);
+      string loc = rp.checkid_(cm, opkele::mode_checkid_setup, return_to_full, 
+                               trust_root, &sreg).append_query(rp.get_endpoint().uri);
       return loc;
 }
 
@@ -463,8 +485,8 @@ string auth_success(string nonce, string claimed_id) {
  * So we politely complain and tell not much more.
  * FIXME: some logging would be nice though.
  */
-void send_terse_error(m2pp::connection &conn, m2pp::request req) {
-  conn.reply_http(req, "<html><body><h1>Error</h1><p>One of the necessary parameters not supplied</p></body></html>", 
+void send_terse_error(m2pp::connection &conn, m2pp::request req, string err) {
+  conn.reply_http(req, "<html><body><h1>Error " + err + "</h1><p>One of the necessary parameters not supplied</p></body></html>", 
                  500, "Invalid parameters");
 }
 
@@ -515,28 +537,35 @@ int main(int argc, char *argv[]) {
 
     // if user is posting id (only openid_identifier will contain a value)
     if(params.has_param("openid_identifier") && 
-          params.has_param("onsuccess") &&
-          params.has_param("oncancel") &&
-          params.has_param("trust_root") &&
+          params.has_param("profile") &&
           params.has_param("return_to") &&
           !params.has_param("openid.assoc_handle")) {
       std::vector<m2pp::header> reply_headers;
       string openid_id = params.get_param("openid_identifier");
-      string onsuccess = params.get_param("onsuccess");
-      string oncancel = params.get_param("oncancel");
-      string trust_root = params.get_param("trust_root");
+      string profile = params.get_param("profile");
+      if(get_profile_value(profile, "active") == "") {
+        profile = "default";
+      }
       string return_to = params.get_param("return_to");
-      string loc = start_auth(openid_id, onsuccess, oncancel, trust_root, return_to);
+      string loc = start_auth(openid_id, profile, return_to);
       m2pp::header redirect_hdr("Location", loc);
       reply_headers.push_back(redirect_hdr);
       conn.reply_http(req, "", 302, "Redirect", reply_headers);
       
-    } else if(params.has_param("openid.assoc_handle") && params.has_param("request.cookie") && params.has_param("onsuccess") && params.has_param("openid.return_to")) { 
-      // user has been redirected, authenticate them and set cookie
+    } else if(params.has_param("openid.assoc_handle") && params.has_param("request.cookie") && 
+              params.has_param("orig.return_to") ) { // && params.has_param("orig.return_to")) { 
+      // user has been redirected, authenticate them and set HTTP cookie if needed
       try {
         string req_cookie = params.get_param("request.cookie");
-        if(check_request_cookie(req_cookie)) {
-          m2_rp_t rp(req_cookie, params.get_param("openid.return_to"));
+        /* This is a lightweight stateless way to ensure we do not get stale requests */
+        string profile = check_request_cookie(req_cookie);
+        if(profile == "") {
+          /* protocol violation: bad cookie */
+          /* FIXME: this can happen with the user error as well if they fall asleep while logging in ? */
+          send_terse_error(conn, req, "bad_cookie");
+        } else {
+          string full_return_to = get_full_return(profile, req_cookie, params.get_param("orig.return_to"));
+          m2_rp_t rp(req_cookie, full_return_to);
           std::vector<m2pp::header> reply_headers;
           rp.id_res(m2openid::m2openid_message_t(params));
           string cookie_value = auth_success(req_cookie, rp.get_claimed_id());
@@ -544,26 +573,28 @@ int main(int argc, char *argv[]) {
             m2pp::header cookie_hdr("Set-Cookie", cookie_value);
             reply_headers.push_back(cookie_hdr);
           }
-          m2pp::header redirect_hdr("Location", params.get_param("onsuccess"));
+          m2pp::header redirect_hdr("Location", params.get_param("orig.return_to"));
           reply_headers.push_back(redirect_hdr);
           conn.reply_http(req, "", 302, "Redirect", reply_headers);
-        } else {
-          /* protocol violation: bad cookie */
-          /* FIXME: this can happen with the user error as well if they fall asleep while logging in ? */
-          send_terse_error(conn, req);
         }
       } catch (opkele::exception &e) {
         /* Something really bad happened within opkele */
-        send_terse_error(conn, req);
+        send_terse_error(conn, req, "processing_exception");
       }
     } else { //either the cancelled auth, or we are in error.
-      if(params.has_param("openid.mode") && params.get_param("openid.mode") == "cancel" && params.has_param("oncancel")) {
+      if(params.has_param("openid.mode") && params.get_param("openid.mode") == "cancel" && 
+         params.has_param("request.cookie")) {
+         
+        string profile = check_request_cookie(params.get_param("request.cookie"));
+        if(profile == "") {
+          profile = "default";
+        }
         std::vector<m2pp::header> reply_headers;
-        m2pp::header redirect_hdr("Location", params.get_param("oncancel"));
+        m2pp::header redirect_hdr("Location", get_profile_value(profile, "oncancel"));
         reply_headers.push_back(redirect_hdr);
         conn.reply_http(req, "", 302, "Redirect", reply_headers);
       } else {
-        send_terse_error(conn, req);
+        send_terse_error(conn, req, "generic_error");
       }
     }
 

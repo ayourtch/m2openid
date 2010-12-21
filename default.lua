@@ -155,5 +155,22 @@ function auth_success(nonce, claimed_id)
   ]]
 end
 
+profiles = {
+  default = {
+    active = "yes",
+    handler_url = "http://beta.stdio.be:8888/openid",
+    oncancel = "http://beta.stdio.be:8888/cancel.html",
+  }
+}
+
+function get_profile_value(profile, key) 
+  local prof = profiles[profile]
+  if(prof) then
+    return prof[key]
+  else
+    return nil
+  end
+end
+
 
 p "We are using default.lua for callbacks"
