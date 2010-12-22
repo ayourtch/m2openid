@@ -29,6 +29,10 @@ function p(str)
   print("LUA: " ..str)
 end
 
+function log_error(str)
+  print("ERROR:" .. str)
+end
+
 assocs = {}
 
 function store_assoc(op, handle, type, secret, expires_on)

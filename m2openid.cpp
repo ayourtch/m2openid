@@ -451,6 +451,14 @@ string get_config_value(string key) {
   return "";
 }
 
+void log_error(string ref, string message) {
+  if(lua_find_func(L, "log_error")) {
+    lua_pushstring(L, ref.c_str());
+    lua_pushstring(L, message.c_str());
+    lua_call_func(L, 2, 0);
+  } 
+}
+
 string get_full_return(string profile, string req_cookie, string return_to) {
   return get_profile_value(profile, "handler_url") + "?request.cookie=" + req_cookie + 
          "&orig.return_to=" + return_to;
@@ -554,11 +562,17 @@ int main(int argc, char *argv[]) {
         profile = "default";
       }
       string return_to = params.get_param("return_to");
-      string loc = start_auth(openid_id, profile, return_to);
-      m2pp::header redirect_hdr("Location", loc);
-      reply_headers.push_back(redirect_hdr);
-      conn.reply_http(req, "", 302, "Redirect", reply_headers);
-      
+      try {
+        string loc = start_auth(openid_id, profile, return_to);
+        m2pp::header redirect_hdr("Location", loc);
+        reply_headers.push_back(redirect_hdr);
+        conn.reply_http(req, "", 302, "Redirect", reply_headers);
+      } catch (opkele::exception &e) {
+        /* Something really bad happened within opkele */
+        send_terse_error(conn, req, "processing_exception");
+        log_error("-", "Error while trying to auth using " + params.has_param("openid_identifier") + 
+                       ": " + e.what());
+      }
     } else if(params.has_param("openid.assoc_handle") && params.has_param("request.cookie") && 
               params.has_param("orig.return_to") ) { // && params.has_param("orig.return_to")) { 
       // user has been redirected, authenticate them and set HTTP cookie if needed
@@ -570,6 +584,7 @@ int main(int argc, char *argv[]) {
           /* protocol violation: bad cookie */
           /* FIXME: this can happen with the user error as well if they fall asleep while logging in ? */
           send_terse_error(conn, req, "bad_cookie");
+          log_error(req_cookie, "bad cookie");
         } else {
           string full_return_to = get_full_return(profile, req_cookie, params.get_param("orig.return_to"));
           m2_rp_t rp(req_cookie, full_return_to);
@@ -587,6 +602,7 @@ int main(int argc, char *argv[]) {
       } catch (opkele::exception &e) {
         /* Something really bad happened within opkele */
         send_terse_error(conn, req, "processing_exception");
+        log_error(req_cookie, e.what());
       }
     } else { //either the cancelled auth, or we are in error.
       if(params.has_param("openid.mode") && params.get_param("openid.mode") == "cancel" && 
@@ -602,6 +618,7 @@ int main(int argc, char *argv[]) {
         conn.reply_http(req, "", 302, "Redirect", reply_headers);
       } else {
         send_terse_error(conn, req, "generic_error");
+        log_error("-", "generic error");
       }
     }
 
