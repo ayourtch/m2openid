@@ -570,9 +570,7 @@ int main(int argc, char *argv[]) {
       } catch (opkele::exception &e) {
         /* Something really bad happened within opkele */
         send_terse_error(conn, req, "processing_exception");
-        log_error("-", "Error while trying to auth using " + params.has_param("openid_identifier") + 
-                       ": " + e.what());
-      }
+        log_error("-", "Error while trying to auth using " + params.get_param("openid_identifier") + ": " + e.what()); }
     } else if(params.has_param("openid.assoc_handle") && params.has_param("request.cookie") && 
               params.has_param("orig.return_to") ) { // && params.has_param("orig.return_to")) { 
       // user has been redirected, authenticate them and set HTTP cookie if needed
@@ -602,7 +600,7 @@ int main(int argc, char *argv[]) {
       } catch (opkele::exception &e) {
         /* Something really bad happened within opkele */
         send_terse_error(conn, req, "processing_exception");
-        log_error(req_cookie, e.what());
+        log_error("-", e.what());
       }
     } else { //either the cancelled auth, or we are in error.
       if(params.has_param("openid.mode") && params.get_param("openid.mode") == "cancel" && 

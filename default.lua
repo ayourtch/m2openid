@@ -29,8 +29,8 @@ function p(str)
   print("LUA: " ..str)
 end
 
-function log_error(str)
-  print("ERROR:" .. str)
+function log_error(ref, str)
+  print("ERROR:" .. ref .. " " .. str)
 end
 
 assocs = {}
