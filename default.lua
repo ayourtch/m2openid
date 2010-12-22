@@ -169,6 +169,7 @@ profiles = {
     active = "yes",
     handler_url = "http://beta.stdio.be:8888/openid",
     oncancel = "http://beta.stdio.be:8888/cancel.html",
+    trust_root = "http://beta.stdio.be:8888/"
   }
 }
 
